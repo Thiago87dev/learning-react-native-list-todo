@@ -1,6 +1,7 @@
 import Task from "@/components/Task";
 import { colors } from "@/constants/colors";
-import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
@@ -10,17 +11,44 @@ import {
   TextInput,
   View,
 } from "react-native";
-// import pimguin from "../assets/images/check.png";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const initialTasks = [
-  { id: 1, completed: true, text: "Fazer café" },
-  { id: 2, completed: false, text: "Estudar RN" },
-  { id: 3, completed: false, text: "Malhar" },
-];
+interface TaskType {
+  id: number
+  completed: boolean
+  text: string
+}
 
 export default function RootLayout() {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState<TaskType[]>([]);
   const [text, setText] = useState("");
+
+  useEffect(() => {
+    const getTaskAsyncStorage = async () => {
+      try {
+        const jsonValue = await AsyncStorage.getItem("tasks");
+        if (jsonValue !== null) {
+          setTasks(JSON.parse(jsonValue));
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    getTaskAsyncStorage()
+  }, []);
+
+  useEffect(() => {
+    const setTaskAsyncStorage = async () => {
+      try {
+        const jsonValue = JSON.stringify(tasks);
+        await AsyncStorage.setItem("tasks", jsonValue);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    setTaskAsyncStorage();
+  }, [tasks]);
 
   const addTask = () => {
     const newTask = { id: tasks.length + 1, completed: false, text };
@@ -29,34 +57,52 @@ export default function RootLayout() {
   };
 
   return (
-    <View style={style.mainContainer}>
-      <View style={style.rowContainer}>
-        <Image
-          style={style.image}
-          source={require("@/assets/images/check.png")}
+    <GestureHandlerRootView>
+      <SafeAreaView style={style.mainContainer}>
+        <View style={style.rowContainer}>
+          <Image
+            style={style.image}
+            source={require("@/assets/images/check.png")}
+          />
+          <Text style={style.title}>Olá Mundo!!</Text>
+        </View>
+        <View style={style.rowContainer}>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            style={style.input}
+            keyboardType="default" // default é o padrão e não necessario
+          />
+          <Pressable
+            style={({ pressed }) => [
+              style.button,
+              { backgroundColor: pressed ? "blue" : colors.primary },
+            ]}
+            onPress={addTask}
+          >
+            <Text style={style.buttonText}>+</Text>
+          </Pressable>
+        </View>
+        <FlatList
+          data={tasks}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <Task
+              initialCompleted={item.completed}
+              text={item.text}
+              deleteTask={() =>
+                setTasks(tasks.filter((task) => task.id !== item.id))
+              }
+              toggleTask={() =>
+                setTasks(
+                  tasks.map((task) => task.id === item.id ? {...task, completed: !task.completed} : task)
+                )
+              }
+            />
+          )}
         />
-        <Text style={style.title}>Olá Mundo!!</Text>
-      </View>
-      <View style={style.rowContainer}>
-        <TextInput value={text} onChangeText={setText} style={style.input} />
-        <Pressable
-          style={({ pressed }) => [
-            style.button,
-            { backgroundColor: pressed ? "blue" : colors.primary },
-          ]}
-          onPress={addTask}
-        >
-          <Text style={style.buttonText}>+</Text>
-        </Pressable>
-      </View>
-      <FlatList
-        data={tasks}
-        // keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <Task initialCompleted={item.completed} text={item.text} />
-        )}
-      />
-    </View>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
